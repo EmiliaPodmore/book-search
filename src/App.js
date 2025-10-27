@@ -86,7 +86,7 @@ export default function App() {
             type="text"
             value={searchTerm}
             onChange={updateSearch}
-            placeholder="Search by title, author, or topic..."
+            placeholder="Search by title, author or keyword..."
           />
 
           <select className="topic-filter" value={topic} onChange={updateTopic}>
@@ -157,7 +157,7 @@ export default function App() {
                 onClick={previousPage}
                 disabled={currentPage === 1}
               >
-                Previous
+                ←
               </button>
               <span className="pagination-info">
                 Page {currentPage} of {totalPages}
@@ -167,7 +167,7 @@ export default function App() {
                 onClick={nextPage}
                 disabled={!bookData.next}
               >
-                Next
+                →
               </button>
             </div>
           </div>
