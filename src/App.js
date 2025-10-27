@@ -2,69 +2,76 @@ import React, { useState } from "react";
 import "./App.css";
 
 export default function App() {
-  const [searchTerm, setSearchTerm] = useState(""); // User input for search
-  const [topic, setTopic] = useState(""); // Topic filter selection
-  const [books, setBooks] = useState([]); // Book results from API
-  const [loading, setLoading] = useState(false); // Loading indicator
-  const [error, setError] = useState(""); // Error messages
-  const [currentPage, setCurrentPage] = useState(1); // Current page for pagination
-  const [totalPages, setTotalPages] = useState(0); // Total number of pages from API
+  // State variables for managing search term, topic filter, book data, and pagination
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Search handle
-  function handleSearch(event) {
-    event.preventDefault();
-    searchBooks(1); // Start search from page 1
+  // topic stores the selected filter from the dropdown menu
+  const [topic, setTopic] = useState("");
+
+  // bookData stores the entire response object from the API, including results array and pagination info
+  const [bookData, setBookData] = useState(null);
+
+  // currentPage tracks which page of results we're currently viewing
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // totalPages stores the total number of pages available based on the total count of books
+  const [totalPages, setTotalPages] = useState(0);
+
+  // This function runs when the user clicks the Search button
+  function handleSearch() {
+    loadBooks(1);
   }
 
-  // Fetch books from API
-  function searchBooks(page) {
-    if (!searchTerm.trim()) {
-      return; // Stop if search box is empty
-    }
-
-    setLoading(true);
-    setError("");
-
-    // Base API URL with search term and page
+  // This is the main function that fetches book data from the Gutendex API
+  function loadBooks(page) {
+    // Start building the API URL
     let apiUrl = `https://gutendex.com/books?search=${searchTerm}&page=${page}`;
 
-    // Add topic filter
+    // Check if the user has selected a topic filter from the dropdown and add to the API URL
     if (topic) {
-      apiUrl = apiUrl + `&topic=${topic}`;
+      apiUrl += `&topic=${topic}`;
     }
-    // Fetch data from API
-    fetch(apiUrl)
-      .then((response) => response.json())
-      .then((data) => {
-        setBooks(data.results);
-        setCurrentPage(page);
-        setTotalPages(Math.ceil(data.count / 32)); // Gutendex returns 32 books per page
 
-        if (data.results.length === 0) {
-          setError("No books found.");
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to fetch books. Please try again.");
-        setLoading(false);
+    // fetch() sends a request to the API
+    fetch(apiUrl)
+      // First .then() converts the response into JSON format
+      .then((response) => response.json())
+      // Second .then() takes the JSON data and updates our state variables
+      .then((data) => {
+        // Store all the API response data in bookData state
+        setBookData(data);
+        // Update currentPage to match the page we just loaded
+        setCurrentPage(page);
+        // Calculate total pages by dividing total count by 32 (Gutendex returns 32 books per page)
+        // Math.ceil rounds up to make sure we account for any partial pages
+        setTotalPages(Math.ceil(data.count / 32));
       });
   }
 
-  function handlePreviousPage() {
+  // This function handles clicking the "Previous" button in pagination
+  function previousPage() {
     if (currentPage > 1) {
-      searchBooks(currentPage - 1);
+      // Subtract 1 from current page to go backwards
+      loadBooks(currentPage - 1);
     }
   }
 
-  function handleNextPage() {
-    if (currentPage < totalPages) {
-      searchBooks(currentPage + 1);
-    }
+  // This function handles clicking the "Next" button in pagination and loads the next page by adding 1 to the current page number
+  function nextPage() {
+    loadBooks(currentPage + 1);
   }
 
-  // Show only the first 6 books on screen
-  let displayedBooks = books.slice(0, 6);
+  // This function updates the searchTerm state whenever the user types in the search box
+  // event.target.value contains whatever text is currently in the input field
+  function updateSearch(event) {
+    setSearchTerm(event.target.value);
+  }
+
+  // This function updates the topic state when the user selects a different option from the dropdown
+  // event.target.value contains the value attribute of the selected option element
+  function updateTopic(event) {
+    setTopic(event.target.value);
+  }
 
   return (
     <div className="App">
@@ -73,43 +80,42 @@ export default function App() {
       </header>
 
       <main>
-        <form onSubmit={handleSearch}>
-          <div className="search-bar">
-            <input
-              className="search-input"
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search by title, author, or topic..."
-            />
-            <select
-              className="topic-filter"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-            >
-              <option value="">All Topics</option>
-              <option value="adventure">Adventure</option>
-              <option value="fantasy">Fantasy</option>
-              <option value="science fiction">Science Fiction</option>
-              <option value="mystery">Mystery</option>
-              <option value="romance">Romance</option>
-              <option value="horror">Horror</option>
-              <option value="history">History</option>
-              <option value="philosophy">Philosophy</option>
-              <option value="poetry">Poetry</option>
-              <option value="drama">Drama</option>
-            </select>
+        <div className="search-bar">
+          <input
+            className="search-input"
+            type="text"
+            value={searchTerm}
+            onChange={updateSearch}
+            placeholder="Search by title, author, or topic..."
+          />
 
-            <button className="search-button" type="submit" disabled={loading}>
-              {loading ? "Searching..." : "Search"}
-            </button>
-          </div>
-        </form>
+          <select className="topic-filter" value={topic} onChange={updateTopic}>
+            <option value="">All Topics</option>
+            <option value="adventure">Adventure</option>
+            <option value="fantasy">Fantasy</option>
+            <option value="science fiction">Science Fiction</option>
+            <option value="mystery">Mystery</option>
+            <option value="romance">Romance</option>
+            <option value="horror">Horror</option>
+            <option value="history">History</option>
+            <option value="philosophy">Philosophy</option>
+            <option value="poetry">Poetry</option>
+            <option value="drama">Drama</option>
+          </select>
 
-        {displayedBooks.length > 0 && (
+          <button className="search-button" onClick={handleSearch}>
+            Search
+          </button>
+        </div>
+
+        {/* Conditional rendering - only show results if bookData exists and has a results array */}
+        {bookData && bookData.results && (
           <div>
-            {displayedBooks.map((book) => (
+            {/* Loop through the first 6 books using .slice(0, 6) to limit results displayed */}
+            {/* .map() creates a result card for each book in the array */}
+            {bookData.results.slice(0, 6).map((book) => (
               <div className="result-card" key={book.id}>
+                {/* Only display the book cover image if the book has one in JPEG format */}
                 {book.formats["image/jpeg"] && (
                   <img
                     className="result-cover"
@@ -119,14 +125,18 @@ export default function App() {
                 )}
 
                 <div className="result-details">
+                  {/* Display the book title */}
                   <h3 className="result-title">{book.title}</h3>
 
+                  {/* Only show authors if the book has any authors in the array */}
                   {book.authors.length > 0 && (
                     <p className="result-author">
-                      By: {book.authors.map((a) => a.name).join(", ")}
+                      {/* .map() gets each author's name, .join() combines them with commas */}
+                      By {book.authors.map((author) => author.name).join(", ")}
                     </p>
                   )}
 
+                  {/* Only show the "Read Online" link if an HTML version is available */}
                   {book.formats["text/html"] && (
                     <a
                       className="result-link"
@@ -144,7 +154,7 @@ export default function App() {
             <div className="pagination">
               <button
                 className="pagination-button"
-                onClick={handlePreviousPage}
+                onClick={previousPage}
                 disabled={currentPage === 1}
               >
                 Previous
@@ -154,8 +164,8 @@ export default function App() {
               </span>
               <button
                 className="pagination-button"
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
+                onClick={nextPage}
+                disabled={!bookData.next}
               >
                 Next
               </button>
@@ -163,8 +173,9 @@ export default function App() {
           </div>
         )}
       </main>
+
       <footer>
-        This project was coded by{" "}
+        This was coded by{" "}
         <a
           href="https://emiliapodmoredev.netlify.app/"
           target="_blank"
