@@ -84,9 +84,10 @@ export default function App() {
           <input
             className="search-input"
             type="text"
+            autoFocus={true}
             value={searchTerm}
             onChange={updateSearch}
-            placeholder="Search by title, author or keyword..."
+            placeholder="Search by title, author or term..."
           />
 
           <select className="topic-filter" value={topic} onChange={updateTopic}>
@@ -132,7 +133,7 @@ export default function App() {
                   {book.authors.length > 0 && (
                     <p className="result-author">
                       {/* .map() gets each author's name, .join() combines them with commas */}
-                      By {book.authors.map((author) => author.name).join(", ")}
+                      {book.authors.map((author) => author.name).join(", ")}
                     </p>
                   )}
 
@@ -150,7 +151,12 @@ export default function App() {
                 </div>
               </div>
             ))}
-
+            {/* Show "No results found" message if search returned empty results */}
+            {bookData && bookData.results && bookData.results.length === 0 && (
+              <div className="no-results">
+                <p>No results found.</p>
+              </div>
+            )}
             <div className="pagination">
               <button
                 className="pagination-button"
@@ -175,7 +181,7 @@ export default function App() {
       </main>
 
       <footer>
-        This was coded by{" "}
+        This project was coded by{" "}
         <a
           href="https://emiliapodmoredev.netlify.app/"
           target="_blank"
