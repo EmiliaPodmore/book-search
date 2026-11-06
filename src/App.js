@@ -1,77 +1,80 @@
 import React, { useState } from "react";
 import "./App.css";
 
+// Gutendex always returns 32 books per page
+const PAGE_SIZE = 32;
+
 export default function App() {
-  // State variables for managing search term, topic filter, book data, and pagination
   const [searchTerm, setSearchTerm] = useState("");
-
-  // topic stores the selected filter from the dropdown menu
   const [topic, setTopic] = useState("");
-
-  // bookData stores the entire response object from the API, including results array and pagination info
   const [bookData, setBookData] = useState(null);
-
-  // currentPage tracks which page of results we're currently viewing
   const [currentPage, setCurrentPage] = useState(1);
-
-  // totalPages stores the total number of pages available based on the total count of books
   const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // This function runs when the user clicks the Search button
-  function handleSearch() {
+  // Runs when the form is submitted (Search button click OR pressing Enter)
+  function handleSearch(event) {
+    event.preventDefault();
     loadBooks(1);
   }
 
-  // This is the main function that fetches book data from the Gutendex API
+  // Fetches book data from the Gutendex API
   function loadBooks(page) {
-    // Start building the API URL
-    let apiUrl = `https://gutendex.com/books?search=${searchTerm}&page=${page}`;
+    // encodeURIComponent makes sure characters like & or # don't break the URL
+    let apiUrl = `https://gutendex.com/books?search=${encodeURIComponent(
+      searchTerm,
+    )}&page=${page}`;
 
-    // Check if the user has selected a topic filter from the dropdown and add to the API URL
     if (topic) {
-      apiUrl += `&topic=${topic}`;
+      apiUrl += `&topic=${encodeURIComponent(topic)}`;
     }
 
-    // fetch() sends a request to the API
+    setLoading(true);
+    setError("");
+
     fetch(apiUrl)
-      // First .then() converts the response into JSON format
-      .then((response) => response.json())
-      // Second .then() takes the JSON data and updates our state variables
+      .then((response) => {
+        // fetch doesn't throw on HTTP errors, so check manually
+        if (!response.ok) {
+          throw new Error(`Request failed (status ${response.status})`);
+        }
+        return response.json();
+      })
       .then((data) => {
-        // Store all the API response data in bookData state
         setBookData(data);
-        // Update currentPage to match the page we just loaded
         setCurrentPage(page);
-        // Calculate total pages by dividing total count by 32 (Gutendex returns 32 books per page)
-        // Math.ceil rounds up to make sure we account for any partial pages
-        setTotalPages(Math.ceil(data.count / 32));
+        setTotalPages(Math.ceil(data.count / PAGE_SIZE));
+      })
+      .catch(() => {
+        setError(
+          "Sorry, something went wrong loading books. Please try again.",
+        );
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }
 
-  // This function handles clicking the "Previous" button in pagination
   function previousPage() {
     if (currentPage > 1) {
-      // Subtract 1 from current page to go backwards
       loadBooks(currentPage - 1);
     }
   }
 
-  // This function handles clicking the "Next" button in pagination and loads the next page by adding 1 to the current page number
   function nextPage() {
     loadBooks(currentPage + 1);
   }
 
-  // This function updates the searchTerm state whenever the user types in the search box
-  // event.target.value contains whatever text is currently in the input field
   function updateSearch(event) {
     setSearchTerm(event.target.value);
   }
 
-  // This function updates the topic state when the user selects a different option from the dropdown
-  // event.target.value contains the value attribute of the selected option element
   function updateTopic(event) {
     setTopic(event.target.value);
   }
+
+  const results = bookData && bookData.results ? bookData.results : null;
 
   return (
     <div className="App">
@@ -80,7 +83,8 @@ export default function App() {
       </header>
 
       <main>
-        <div className="search-bar">
+        {/* A form lets the Enter key trigger the search */}
+        <form className="search-bar" onSubmit={handleSearch}>
           <input
             className="search-input"
             type="text"
@@ -104,78 +108,83 @@ export default function App() {
             <option value="drama">Drama</option>
           </select>
 
-          <button className="search-button" onClick={handleSearch}>
-            Search
+          <button className="search-button" type="submit" disabled={loading}>
+            {loading ? "Searching..." : "Search"}
           </button>
-        </div>
+        </form>
 
-        {/* Conditional rendering - only show results if bookData exists and has a results array */}
-        {bookData && bookData.results && (
+        {error && (
+          <div className="no-results">
+            <p>{error}</p>
+          </div>
+        )}
+
+        {results && (
           <div>
-            {/* Loop through the first 6 books using .slice(0, 6) to limit results displayed */}
-            {/* .map() creates a result card for each book in the array */}
-            {bookData.results.slice(0, 6).map((book) => (
-              <div className="result-card" key={book.id}>
-                {/* Only display the book cover image if the book has one in JPEG format */}
-                {book.formats["image/jpeg"] && (
-                  <img
-                    className="result-cover"
-                    src={book.formats["image/jpeg"]}
-                    alt={book.title}
-                  />
-                )}
-
-                <div className="result-details">
-                  {/* Display the book title */}
-                  <h3 className="result-title">{book.title}</h3>
-
-                  {/* Only show authors if the book has any authors in the array */}
-                  {book.authors.length > 0 && (
-                    <p className="result-author">
-                      {/* .map() gets each author's name, .join() combines them with commas */}
-                      {book.authors.map((author) => author.name).join(", ")}
-                    </p>
-                  )}
-
-                  {/* Only show the "Read Online" link if an HTML version is available */}
-                  {book.formats["text/html"] && (
-                    <a
-                      className="result-link"
-                      href={book.formats["text/html"]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Read Online
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-            {/* Show "No results found" message if search returned empty results */}
-            {bookData && bookData.results && bookData.results.length === 0 && (
+            {results.length === 0 ? (
               <div className="no-results">
                 <p>No results found.</p>
               </div>
+            ) : (
+              <>
+                {/* Show every book on the page (previously only 6 of 32) */}
+                {results.map((book) => (
+                  <div className="result-card" key={book.id}>
+                    {book.formats["image/jpeg"] && (
+                      <img
+                        className="result-cover"
+                        src={book.formats["image/jpeg"]}
+                        alt={book.title}
+                      />
+                    )}
+
+                    <div className="result-details">
+                      <h3 className="result-title">{book.title}</h3>
+
+                      {book.authors.length > 0 && (
+                        <p className="result-author">
+                          {book.authors.map((author) => author.name).join(", ")}
+                        </p>
+                      )}
+
+                      {book.formats["text/html"] && (
+                        <a
+                          className="result-link"
+                          href={book.formats["text/html"]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Read Online
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Pagination only appears when there are results */}
+                <div className="pagination">
+                  <button
+                    className="pagination-button"
+                    onClick={previousPage}
+                    disabled={currentPage === 1 || loading}
+                  >
+                    ←
+                  </button>
+
+                  <span className="pagination-info">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  <button
+                    className="pagination-button"
+                    onClick={nextPage}
+                    disabled={!bookData.next || loading}
+                  >
+                    →
+                  </button>
+                </div>
+              </>
             )}
-            <div className="pagination">
-              <button
-                className="pagination-button"
-                onClick={previousPage}
-                disabled={currentPage === 1}
-              >
-                ←
-              </button>
-              <span className="pagination-info">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                className="pagination-button"
-                onClick={nextPage}
-                disabled={!bookData.next}
-              >
-                →
-              </button>
-            </div>
           </div>
         )}
       </main>
